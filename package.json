@@ -1,0 +1,17 @@
+{
+  "name": "mc-discord-bridge",
+  "version": "1.0.0",
+  "description": "Minecraft <-> Discord chat bridge via log tailing + RCON",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5",
+    "rcon-client": "^4.2.4",
+    "tail": "^2.2.6"
+  }
+}

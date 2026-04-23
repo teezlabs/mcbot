@@ -1,0 +1,10 @@
+services:
+  mc-discord:
+    build: .
+    restart: unless-stopped
+    network_mode: host
+    env_file: .env
+    environment:
+      MC_LOG_PATH: /mc/logs/latest.log
+    volumes:
+      - ${MC_LOG_HOST_PATH}:/mc/logs/latest.log:ro
