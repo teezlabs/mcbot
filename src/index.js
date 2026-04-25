@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { createDiscordBot } from './discord/bot.js';
 import { watchLogs } from './minecraft/logWatcher.js';
 import { RconClient } from './minecraft/rcon.js';
-import { startPackUpdateChecker } from './minecraft/packUpdater.js';
+import { startPackUpdateChecker, fetchPackName } from './minecraft/packUpdater.js';
 
 const {
   DISCORD_TOKEN,
@@ -42,6 +42,11 @@ const bot = await createDiscordBot({
 
 await rcon.connect();
 
+const packName = CURSEFORGE_API_KEY && CURSEFORGE_PROJECT_ID
+  ? await fetchPackName(CURSEFORGE_PROJECT_ID, CURSEFORGE_API_KEY)
+  : null;
+if (packName) console.log(`[PackUpdater] Pack name: ${packName}`);
+
 watchLogs(MC_LOG_PATH, (event) => bot.sendEvent(event));
 
 // Presence: poll player count every 30s via RCON
@@ -51,10 +56,11 @@ async function refreshPresence() {
     return;
   }
   const response = await rcon.query('list');
-  // "There are X of a max of Y players online: ..."
-  const match = response?.match(/There are (\d+) of a max(?: of)? (\d+) players online/);
+  // "There are X of a max of Y players online: player1, player2"
+  const match = response?.match(/There are (\d+) of a max(?: of)? (\d+) players online[^:]*:(.*)/);
   if (match) {
-    bot.updatePresence({ online: Number(match[1]), max: Number(match[2]), serverOnline: true });
+    const players = match[3].split(',').map((p) => p.trim()).filter(Boolean);
+    bot.updatePresence({ online: Number(match[1]), max: Number(match[2]), players, serverOnline: true, packName });
   } else {
     bot.updatePresence({ serverOnline: false });
   }

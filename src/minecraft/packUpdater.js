@@ -1,5 +1,18 @@
 const CURSEFORGE_API = 'https://api.curseforge.com/v1';
 
+export async function fetchPackName(projectId, apiKey) {
+  try {
+    const res = await fetch(`${CURSEFORGE_API}/mods/${projectId}`, {
+      headers: { 'x-api-key': apiKey, Accept: 'application/json' },
+    });
+    if (!res.ok) return null;
+    const { data } = await res.json();
+    return data?.name ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchLatestFile(projectId, apiKey) {
   const res = await fetch(
     `${CURSEFORGE_API}/mods/${projectId}/files?pageSize=1&sortField=5&sortOrder=desc`,

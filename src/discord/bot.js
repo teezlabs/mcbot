@@ -103,17 +103,24 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
     }
   }
 
-  function updatePresence({ online, max, serverOnline }) {
+  function updatePresence({ online, max, players, serverOnline, packName }) {
     if (!serverOnline) {
       client.user.setPresence({
-        activities: [{ name: 'Server offline', type: ActivityType.Watching }],
+        activities: [{ name: 'Server offline', type: ActivityType.Playing }],
         status: 'idle',
       });
       return;
     }
+    const state = online === 0
+      ? 'No players online'
+      : players.join(', ');
     client.user.setPresence({
-      activities: [{ name: `${online}/${max} players online`, type: ActivityType.Watching }],
-      status: 'online',
+      activities: [{
+        name: packName ? `${packName} • ${online}/${max} players` : `${online}/${max} players online`,
+        type: ActivityType.Playing,
+        state,
+      }],
+      status: online > 0 ? 'online' : 'idle',
     });
   }
 
