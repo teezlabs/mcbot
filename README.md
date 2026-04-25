@@ -8,6 +8,7 @@ Bridges chat between a Minecraft server and Discord. Works with NeoForge 1.21.1 
 - Discord messages show up in Minecraft chat
 - Join/leave and death messages are posted to Discord
 - Server start/stop is announced in Discord
+- Modpack update notifications when a new version is released on CurseForge (optional)
 
 ## Requirements
 
@@ -57,3 +58,6 @@ docker compose up -d
 | `RCON_HOST` | RCON host (use `localhost` if server runs on the same machine) |
 | `RCON_PORT` | RCON port (default 25575) |
 | `RCON_PASSWORD` | RCON password |
+| `CURSEFORGE_API_KEY` | (Optional) CurseForge API key — enables pack update notifications |
+| `CURSEFORGE_PROJECT_ID` | (Optional) CurseForge project ID of the modpack |
+| `PACK_UPDATE_INTERVAL_MS` | (Optional) How often to check for updates in ms (default: `3600000` = 1 hour) |

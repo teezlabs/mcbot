@@ -86,5 +86,22 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
     }
   }
 
-  return { sendEvent };
+  async function sendPackUpdate(file) {
+    try {
+      await webhook.send({
+        username: 'Pack Updates',
+        embeds: [{
+          title: 'New modpack update available!',
+          description: `**${file.displayName}** is now available on CurseForge.`,
+          url: file.downloadUrl ?? undefined,
+          color: 0xF0A500,
+          timestamp: file.fileDate,
+        }],
+      });
+    } catch (err) {
+      console.error('[Discord] Failed to send pack update:', err.message);
+    }
+  }
+
+  return { sendEvent, sendPackUpdate };
 }
