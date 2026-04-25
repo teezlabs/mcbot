@@ -44,6 +44,25 @@ await rcon.connect();
 
 watchLogs(MC_LOG_PATH, (event) => bot.sendEvent(event));
 
+// Presence: poll player count every 30s via RCON
+async function refreshPresence() {
+  if (!rcon.connected) {
+    bot.updatePresence({ serverOnline: false });
+    return;
+  }
+  const response = await rcon.query('list');
+  // "There are X of a max of Y players online: ..."
+  const match = response?.match(/There are (\d+) of a max(?: of)? (\d+) players online/);
+  if (match) {
+    bot.updatePresence({ online: Number(match[1]), max: Number(match[2]), serverOnline: true });
+  } else {
+    bot.updatePresence({ serverOnline: false });
+  }
+}
+
+await refreshPresence();
+setInterval(refreshPresence, 30_000);
+
 if (CURSEFORGE_API_KEY && CURSEFORGE_PROJECT_ID) {
   startPackUpdateChecker({
     projectId: CURSEFORGE_PROJECT_ID,

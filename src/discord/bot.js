@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Events, WebhookClient } from 'discord.js';
+import { Client, GatewayIntentBits, Events, WebhookClient, ActivityType } from 'discord.js';
 
 const COLORS = {
   join: 0x57F287,   // green
@@ -103,5 +103,19 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
     }
   }
 
-  return { sendEvent, sendPackUpdate };
+  function updatePresence({ online, max, serverOnline }) {
+    if (!serverOnline) {
+      client.user.setPresence({
+        activities: [{ name: 'Server offline', type: ActivityType.Watching }],
+        status: 'idle',
+      });
+      return;
+    }
+    client.user.setPresence({
+      activities: [{ name: `${online}/${max} players online`, type: ActivityType.Watching }],
+      status: 'online',
+    });
+  }
+
+  return { sendEvent, sendPackUpdate, updatePresence };
 }

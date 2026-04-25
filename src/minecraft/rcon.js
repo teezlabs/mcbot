@@ -35,6 +35,20 @@ export class RconClient {
     }
   }
 
+  async query(command) {
+    if (!this.rcon) return null;
+    try {
+      return await this.rcon.send(command);
+    } catch (err) {
+      console.error('[RCON] Query failed:', err.message);
+      return null;
+    }
+  }
+
+  get connected() {
+    return this.rcon !== null;
+  }
+
   _scheduleReconnect() {
     this.rcon = null;
     if (this.reconnectTimer) return;
