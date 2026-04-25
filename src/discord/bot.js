@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Events, WebhookClient, ActivityType } from 'discord.js';
+import { Client, GatewayIntentBits, Events, WebhookClient, ActivityType, REST, Routes, SlashCommandBuilder } from 'discord.js';
 
 const COLORS = {
   join: 0x57F287,   // green
@@ -12,7 +12,7 @@ function avatarURL(player) {
   return `https://mc-heads.net/avatar/${player}/64`;
 }
 
-export async function createDiscordBot({ token, channelId, webhookUrl, onMessage }) {
+export async function createDiscordBot({ token, channelId, webhookUrl, onMessage, curseforgeProjectId, curseforgeApiKey, fetchLatestFile }) {
   const client = new Client({
     intents: [
       GatewayIntentBits.Guilds,
@@ -36,6 +36,45 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
   }
 
   const webhook = new WebhookClient({ url: webhookUrl });
+
+  // Register slash commands
+  if (curseforgeProjectId && curseforgeApiKey) {
+    const rest = new REST().setToken(token);
+    const commands = [
+      new SlashCommandBuilder()
+        .setName('checkupdate')
+        .setDescription('Check for the latest modpack update on CurseForge')
+        .toJSON(),
+    ];
+    await rest.put(Routes.applicationCommands(client.user.id), { body: commands })
+      .then(() => console.log('[Discord] Slash commands registered'))
+      .catch((err) => console.error('[Discord] Failed to register commands:', err.message));
+
+    client.on(Events.InteractionCreate, async (interaction) => {
+      if (!interaction.isChatInputCommand() || interaction.commandName !== 'checkupdate') return;
+      await interaction.deferReply();
+      try {
+        const file = await fetchLatestFile(curseforgeProjectId, curseforgeApiKey);
+        if (!file) {
+          await interaction.editReply('Could not fetch update info from CurseForge.');
+          return;
+        }
+        await interaction.editReply({
+          embeds: [{
+            title: 'Latest modpack version',
+            description: `**${file.displayName}**`,
+            url: file.downloadUrl ?? undefined,
+            color: 0xF0A500,
+            timestamp: file.fileDate,
+            footer: { text: 'Released' },
+          }],
+        });
+      } catch (err) {
+        await interaction.editReply('Failed to check for updates.');
+        console.error('[Discord] /checkupdate error:', err.message);
+      }
+    });
+  }
 
   // Discord -> Minecraft
   client.on(Events.MessageCreate, (msg) => {

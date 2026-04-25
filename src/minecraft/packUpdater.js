@@ -13,7 +13,7 @@ export async function fetchPackName(projectId, apiKey) {
   }
 }
 
-async function fetchLatestFile(projectId, apiKey) {
+export async function fetchLatestFile(projectId, apiKey) {
   const res = await fetch(
     `${CURSEFORGE_API}/mods/${projectId}/files?pageSize=1&sortField=5&sortOrder=desc`,
     { headers: { 'x-api-key': apiKey, Accept: 'application/json' } },

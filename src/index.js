@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { createDiscordBot } from './discord/bot.js';
 import { watchLogs } from './minecraft/logWatcher.js';
 import { RconClient } from './minecraft/rcon.js';
-import { startPackUpdateChecker, fetchPackName } from './minecraft/packUpdater.js';
+import { startPackUpdateChecker, fetchPackName, fetchLatestFile } from './minecraft/packUpdater.js';
 
 const {
   DISCORD_TOKEN,
@@ -32,6 +32,9 @@ const bot = await createDiscordBot({
   token: DISCORD_TOKEN,
   channelId: DISCORD_CHANNEL_ID,
   webhookUrl: DISCORD_WEBHOOK_URL,
+  curseforgeProjectId: CURSEFORGE_PROJECT_ID,
+  curseforgeApiKey: CURSEFORGE_API_KEY,
+  fetchLatestFile,
   onMessage(username, content) {
     if (!content.trim()) return;
     const safeName = username.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
