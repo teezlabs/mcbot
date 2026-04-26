@@ -22,7 +22,7 @@ function parseLine(line) {
   if (!logger.includes('MinecraftServer') && !logger.includes('minecraft/MinecraftServer')) return null;
 
   if (content.startsWith('<')) {
-    const chat = /^<(\w+)> (.+)$/.exec(content);
+    const chat = /^<([^>]+)> (.+)$/.exec(content);
     if (chat) return { type: 'chat', player: chat[1], message: chat[2] };
   }
 
