@@ -4,8 +4,15 @@ const COLORS = {
   join: 0x57F287,   // green
   leave: 0xED4245,  // red
   death: 0x95A5A6,  // gray
+  advancement: 0xF1C40F, // yellow
   server_start: 0x57F287,
   server_stop: 0xED4245,
+};
+
+const ADVANCEMENT_VERB = {
+  'made the advancement': 'earned the advancement',
+  'completed the challenge': 'completed the challenge',
+  'reached the goal': 'reached the goal',
 };
 
 function avatarURL(player) {
@@ -105,6 +112,17 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
                 ? event.message
                 : `**${event.player}** ${event.type === 'join' ? 'joined' : 'left'} the server`,
               color: COLORS[event.type],
+            }],
+          });
+          break;
+
+        case 'advancement':
+          await webhook.send({
+            username: event.player,
+            avatarURL: avatarURL(event.player),
+            embeds: [{
+              description: `**${event.player}** ${ADVANCEMENT_VERB[event.kind] ?? event.kind} **[${event.name}]**`,
+              color: COLORS.advancement,
             }],
           });
           break;

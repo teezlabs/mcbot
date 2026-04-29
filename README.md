@@ -54,10 +54,12 @@ docker compose up -d
 | `DISCORD_TOKEN` | Bot token |
 | `DISCORD_CHANNEL_ID` | Channel ID for all messages |
 | `DISCORD_WEBHOOK_URL` | Webhook URL for the same channel |
-| `MC_LOG_HOST_PATH` | Path to `latest.log` on the host machine |
+| `MC_LOG_HOST_DIR` | Path to the logs *directory* on the host machine (not `latest.log` itself — see note below) |
 | `RCON_HOST` | RCON host (use `localhost` if server runs on the same machine) |
 | `RCON_PORT` | RCON port (default 25575) |
 | `RCON_PASSWORD` | RCON password |
 | `CURSEFORGE_API_KEY` | (Optional) CurseForge API key — enables pack update notifications |
 | `CURSEFORGE_PROJECT_ID` | (Optional) CurseForge project ID of the modpack |
 | `PACK_UPDATE_INTERVAL_MS` | (Optional) How often to check for updates in ms (default: `3600000` = 1 hour) |
+
+> **Why the directory?** Bind-mounting a single file pins its inode in the container. When Minecraft rotates `latest.log`, the container keeps tailing the old (now archived) file and stops seeing new messages. Mounting the directory makes rotation transparent.

@@ -7,4 +7,4 @@ services:
     environment:
       MC_LOG_PATH: /mc/logs/latest.log
     volumes:
-      - ${MC_LOG_HOST_PATH}:/mc/logs/latest.log:ro
+      - ${MC_LOG_HOST_DIR}:/mc/logs:ro

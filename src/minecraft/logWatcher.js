@@ -38,6 +38,11 @@ function parseLine(line) {
     return { type: 'death', player: content.split(' ')[0], message: content };
   }
 
+  const advancement = /^(\S+) has (made the advancement|completed the challenge|reached the goal) \[(.+)\]$/.exec(content);
+  if (advancement) {
+    return { type: 'advancement', player: advancement[1], kind: advancement[2], name: advancement[3] };
+  }
+
   if (/^Done \([\d.]+s\)!/.test(content)) {
     return { type: 'server_start' };
   }
@@ -55,15 +60,34 @@ export function watchLogs(logPath, onEvent) {
     process.exit(1);
   }
 
-  const tail = new Tail(logPath, { follow: true, fromBeginning: false });
+  let tail = null;
 
-  tail.on('line', (line) => {
-    const event = parseLine(line);
-    if (event) onEvent(event);
-  });
+  function start() {
+    tail = new Tail(logPath, {
+      follow: true,
+      fromBeginning: false,
+      useWatchFile: true,
+      fsWatchOptions: { interval: 1000 },
+    });
 
-  tail.on('error', (err) => console.error('[LogWatcher] Error:', err));
+    tail.on('line', (line) => {
+      const event = parseLine(line);
+      if (event) onEvent(event);
+    });
 
-  console.log(`[LogWatcher] Watching ${logPath}`);
-  return tail;
+    tail.on('error', (err) => {
+      console.error('[LogWatcher] Error, restarting tail:', err.message);
+      restart();
+    });
+
+    console.log(`[LogWatcher] Watching ${logPath}`);
+  }
+
+  function restart() {
+    try { tail?.unwatch(); } catch {}
+    setTimeout(start, 2000);
+  }
+
+  start();
+  return { stop: () => tail?.unwatch() };
 }
