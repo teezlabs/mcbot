@@ -52,21 +52,29 @@ if (packName) console.log(`[PackUpdater] Pack name: ${packName}`);
 
 watchLogs(MC_LOG_PATH, (event) => bot.sendEvent(event));
 
-// Presence: poll player count every 30s via RCON
+let lastKnownOnline;
+
 async function refreshPresence() {
+  let isOnline = false;
+
   if (!rcon.connected) {
     bot.updatePresence({ serverOnline: false });
-    return;
-  }
-  const response = await rcon.query('list');
-  // "There are X of a max of Y players online: player1, player2"
-  const match = response?.match(/There are (\d+) of a max(?: of)? (\d+) players online[^:]*:(.*)/);
-  if (match) {
-    const players = match[3].split(',').map((p) => p.trim()).filter(Boolean);
-    bot.updatePresence({ online: Number(match[1]), max: Number(match[2]), players, serverOnline: true, packName });
   } else {
-    bot.updatePresence({ serverOnline: false });
+    const response = await rcon.query('list');
+    const match = response?.match(/There are (\d+) of a max(?: of)? (\d+) players online[^:]*:(.*)/);
+    if (match) {
+      const players = match[3].split(',').map((p) => p.trim()).filter(Boolean);
+      bot.updatePresence({ online: Number(match[1]), max: Number(match[2]), players, serverOnline: true, packName });
+      isOnline = true;
+    } else {
+      bot.updatePresence({ serverOnline: false });
+    }
   }
+
+  if (lastKnownOnline !== undefined && lastKnownOnline !== isOnline) {
+    bot.sendEvent({ type: isOnline ? 'server_start' : 'server_stop' });
+  }
+  lastKnownOnline = isOnline;
 }
 
 await refreshPresence();

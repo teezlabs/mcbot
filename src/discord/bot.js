@@ -132,7 +132,7 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
           await webhook.send({
             username: 'Server',
             embeds: [{
-              description: event.type === 'server_start' ? 'Server is online' : 'Server is going offline',
+              description: event.type === 'server_start' ? 'Server is online' : 'Server is offline',
               color: COLORS[event.type],
             }],
           });

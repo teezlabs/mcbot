@@ -43,14 +43,6 @@ function parseLine(line) {
     return { type: 'advancement', player: advancement[1], kind: advancement[2], name: advancement[3] };
   }
 
-  if (/^Done \([\d.]+s\)!/.test(content)) {
-    return { type: 'server_start' };
-  }
-
-  if (content === 'Stopping the server') {
-    return { type: 'server_stop' };
-  }
-
   return null;
 }
 
