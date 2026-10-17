@@ -21,7 +21,7 @@ MC server ──writes──> logs/latest.log ──tailed by──> bot ──w
 MC server <──RCON tellraw / list── bot <──discord.js gateway── Discord channel
 ```
 
-- **MC → Discord:** the bot follows the server's `logs/latest.log` as it grows. The whole `logs/` directory is bind-mounted read-only into the container. The bot turns each relevant line into an event and posts it through a **Discord webhook**, so each message shows the player's name and their skin from `mc-heads.net` as the avatar.
+- **MC → Discord:** the bot follows the server's `logs/latest.log` as it grows. The whole `logs/` directory is bind-mounted read-only into the container. The bot turns each relevant line into an event and posts it through a **Discord webhook**, so each message shows the player's name and their face as the avatar. The image comes from Minotar by default, requested by UUID; `AVATAR_URL` overrides it. mc-heads.net, the old default, now returns the default Steve head for players with custom skins.
 - **Discord → MC:** a discord.js v14 bot reads messages in one channel and sends them into the game with RCON `tellraw @a`, shown as `[Discord] Name: msg`.
 - **Server status:** every 30s, `index.js` runs RCON `list`. The result updates the bot's presence. A change between online and offline triggers a `server_start` or `server_stop` event. Server status doesn't come from log lines.
 - **Pack updates (optional):** `packUpdater.js` polls the CurseForge API. The first check only records the current file. After that, a new file ID posts an update embed.
@@ -35,6 +35,7 @@ MC server <──RCON tellraw / list── bot <──discord.js gateway── D
 | `src/discord/bot.js` | discord.js client that reads the channel, plus a `WebhookClient` that posts to it. Exports `sendEvent()`, `sendPackUpdate()` and `updatePresence()`, and registers `/checkupdate` when CurseForge is configured |
 | `src/minecraft/logWatcher.js` | Follows the log with the `tail` package, polling the file via `useWatchFile`. Restarts the tail after errors. `parseLine()` turns lines into events |
 | `src/minecraft/deathMessages.js` | Reads every `death.*` template from the `en_us.json` files in the server's jars (top level, `mods/`, `libraries/`, and nested `META-INF/jarjar` / `META-INF/versions` jars) and turns each into a regex. Only accepts deaths of players who are online. Falls back to a keyword list if the vanilla language file isn't found. Reloads when the server comes back online |
+| `src/minecraft/playerUuids.js` | Remembers each player's UUID from "UUID of player X is Y" log lines and the server's `usercache.json`, so avatars are requested by UUID, which avatar services resolve more reliably than names |
 | `src/minecraft/rcon.js` | Wrapper around `rcon-client` that reconnects every 10s. `send()` ignores the server's response, `query()` returns it, and `connected` reports the connection state |
 | `src/minecraft/packUpdater.js` | Calls the CurseForge API: `fetchPackName`, `fetchLatestFile` and `startPackUpdateChecker` |
 | `docker-compose.yml` | One service on the host network. Mounts `${MC_LOG_HOST_DIR}` → `/mc/logs:ro` and `${MC_SERVER_HOST_DIR}` → `/mc/server:ro`, and sets `MC_LOG_PATH` and `MC_SERVER_DIR` to match |

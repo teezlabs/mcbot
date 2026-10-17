@@ -1,5 +1,6 @@
 import { Tail } from 'tail';
 import fs from 'fs';
+import { rememberUuid } from './playerUuids.js';
 
 // Matches any NeoForge INFO line and captures [logger] and message
 const LINE_RE = /^\[[^\]]+\] \[[^\]]+\/INFO\] \[([^\]]+)\]: (.+)$/;
@@ -8,6 +9,10 @@ export function parseLine(line, deaths) {
   const m = LINE_RE.exec(line);
   if (!m) return null;
   const [, logger, content] = m;
+
+  // Logged by the login thread, so it comes before the logger check
+  const login = /^UUID of player (\S+) is ([0-9a-fA-F-]{32,36})$/.exec(content);
+  if (login) return { type: 'uuid', player: login[1], uuid: login[2] };
 
   // Only care about the main server logger for game events
   if (!logger.includes('MinecraftServer') && !logger.includes('minecraft/MinecraftServer')) return null;
@@ -57,6 +62,7 @@ export function watchLogs(logPath, onEvent, deaths) {
     tail.on('line', (line) => {
       const event = parseLine(line, deaths);
       if (!event) return;
+      if (event.type === 'uuid') return rememberUuid(event.player, event.uuid);
       if (event.type === 'join') deaths.playerJoined(event.player);
       if (event.type === 'leave') deaths.playerLeft(event.player);
       onEvent(event);

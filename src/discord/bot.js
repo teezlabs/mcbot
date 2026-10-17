@@ -1,4 +1,5 @@
 import { Client, GatewayIntentBits, Events, WebhookClient, ActivityType, REST, Routes, SlashCommandBuilder } from 'discord.js';
+import { uuidFor } from '../minecraft/playerUuids.js';
 
 const COLORS = {
   join: 0x57F287,   // green
@@ -15,8 +16,12 @@ const ADVANCEMENT_VERB = {
   'reached the goal': 'reached the goal',
 };
 
+// {id} becomes the player's UUID when known, otherwise their name. mc-heads.net used to be the default,
+// but it now returns the default Steve head even for players with custom skins.
+const DEFAULT_AVATAR_URL = 'https://minotar.net/helm/{id}/64.png';
+
 function avatarURL(player) {
-  return `https://mc-heads.net/avatar/${player}/64`;
+  return (process.env.AVATAR_URL || DEFAULT_AVATAR_URL).replaceAll('{id}', uuidFor(player) ?? player);
 }
 
 export async function createDiscordBot({ token, channelId, webhookUrl, onMessage, curseforgeProjectId, curseforgeApiKey, fetchLatestFile }) {

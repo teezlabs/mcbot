@@ -106,5 +106,6 @@ pm2 works too: `pm2 start src/index.js --name mc-discord`.
 | `CURSEFORGE_PROJECT_ID` | (Optional) CurseForge project ID of the modpack |
 | `PACK_UPDATE_INTERVAL_MS` | (Optional) How often to check for updates in ms (default: `3600000` = 1 hour) |
 | `PACK_NAME` | (Optional) Name shown in the bot's status. Defaults to the CurseForge project name; works without a CurseForge key |
+| `AVATAR_URL` | (Optional) Avatar image for Minecraft messages. `{id}` becomes the player's UUID, or their name if the UUID isn't known yet (default: `https://minotar.net/helm/{id}/64.png`) |
 
 > **Why the directory?** Bind-mounting a single file pins its inode in the container. When Minecraft rotates `latest.log`, the container keeps tailing the old (now archived) file and stops seeing new messages. Mounting the directory makes rotation transparent.
