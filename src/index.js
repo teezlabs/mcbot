@@ -48,9 +48,9 @@ const bot = await createDiscordBot({
 
 await rcon.connect();
 
-const packName = CURSEFORGE_API_KEY && CURSEFORGE_PROJECT_ID
+const packName = process.env.PACK_NAME || (CURSEFORGE_API_KEY && CURSEFORGE_PROJECT_ID
   ? await fetchPackName(CURSEFORGE_PROJECT_ID, CURSEFORGE_API_KEY)
-  : null;
+  : null);
 if (packName) console.log(`[PackUpdater] Pack name: ${packName}`);
 
 // Defaults to the folder above logs/, which is the server folder when running without Docker

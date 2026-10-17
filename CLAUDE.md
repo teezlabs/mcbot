@@ -71,6 +71,7 @@ Bind-mounting the single file `latest.log` locks the container to that one file.
    - `MC_SERVER_HOST_DIR`: the absolute path to the server folder. It's mounted read-only so the bot can read death messages from the jars.
    - `RCON_HOST=localhost` (the example's `host-gateway` is wrong; see known issues). Set `RCON_PORT` and `RCON_PASSWORD` to match `server.properties`.
    - Optional: `CURSEFORGE_API_KEY`, `CURSEFORGE_PROJECT_ID` and `PACK_UPDATE_INTERVAL_MS` (default 1 hour).
+   - Optional: `PACK_NAME`, the name shown in the bot's status. It overrides the CurseForge project name and works without a key.
 3. In the Discord developer portal, enable the **Message Content Intent** for the bot. In the channel, give it Send Messages and Read Message History.
 4. Run `docker compose up -d --build`, then `docker compose logs -f`.
    - A healthy startup prints `[Discord] Logged in as ...`, then `[RCON] Connected`, then `[LogWatcher] Watching /mc/logs/latest.log`, then `[DeathMessages] Loaded N death messages ...`. N should be at least 99, the vanilla count for 1.21.1.
