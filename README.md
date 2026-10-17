@@ -1,6 +1,6 @@
 # MC-Discord Bridge
 
-Bridges chat between a Minecraft server and Discord. Works with NeoForge 1.21.1 (and most other server types). Runs as a Docker container.
+Bridges chat between a Minecraft server and Discord. Works with NeoForge 1.21.1 (and most other server types). Runs as a Docker container or directly with Node.js.
 
 ## What it does
 
@@ -12,7 +12,7 @@ Bridges chat between a Minecraft server and Discord. Works with NeoForge 1.21.1 
 
 ## Requirements
 
-- Docker
+- Docker, or Node.js 18+ (22 recommended) to run without Docker
 - A Discord bot and webhook for the same channel
 - RCON enabled on your Minecraft server
 
@@ -47,6 +47,47 @@ Fill in all values in `.env`.
 docker compose up -d
 ```
 
+## Running without Docker
+
+The bot is a plain Node.js app, so Docker is optional.
+
+```bash
+npm install
+npm start
+```
+
+Differences from the Docker setup:
+
+- Set `MC_LOG_PATH` in `.env` to the full path of `latest.log` (for example `/path/to/server/logs/latest.log`). `MC_LOG_HOST_DIR` is only used by Docker and can be left out.
+- Set `RCON_HOST=localhost` if the bot runs on the same machine as the server.
+- Use a process manager to keep the bot running. The bot exits on purpose if `latest.log` is missing or the channel ID is wrong; Docker restarts it automatically, but without Docker nothing will.
+
+Example systemd service (`/etc/systemd/system/mc-discord.service`):
+
+```ini
+[Unit]
+Description=MC-Discord bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/path/to/mcbot
+ExecStart=/usr/bin/node src/index.js
+Restart=always
+RestartSec=10
+User=youruser
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl enable --now mc-discord
+journalctl -u mc-discord -f
+```
+
+pm2 works too: `pm2 start src/index.js --name mc-discord`.
+
 ## .env reference
 
 | Variable | Description |
@@ -54,7 +95,8 @@ docker compose up -d
 | `DISCORD_TOKEN` | Bot token |
 | `DISCORD_CHANNEL_ID` | Channel ID for all messages |
 | `DISCORD_WEBHOOK_URL` | Webhook URL for the same channel |
-| `MC_LOG_HOST_DIR` | Path to the logs *directory* on the host machine (not `latest.log` itself — see note below) |
+| `MC_LOG_HOST_DIR` | Docker only. Path to the logs *directory* on the host machine (not `latest.log` itself — see note below) |
+| `MC_LOG_PATH` | Without Docker only. Full path to `latest.log` (Docker sets this itself) |
 | `RCON_HOST` | RCON host (use `localhost` if server runs on the same machine) |
 | `RCON_PORT` | RCON port (default 25575) |
 | `RCON_PASSWORD` | RCON password |

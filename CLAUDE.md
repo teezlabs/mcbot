@@ -4,7 +4,7 @@ This file guides Claude Code when it works in this repository.
 
 ## What this is
 
-This bot connects a Minecraft server's chat with a Discord channel. It runs on its own in Docker, outside the server. It was built for **1.21.1 NeoForge**, where the MC2Discord mod doesn't work, but it should work with most server types. The Minecraft server is expected to run on the same machine, not inside Docker.
+This bot connects a Minecraft server's chat with a Discord channel. It runs on its own, outside the server, either in Docker or directly with Node. It was built for **1.21.1 NeoForge**, where the MC2Discord mod doesn't work, but it should work with most server types. The Minecraft server is expected to run on the same machine, not inside Docker.
 
 Features:
 
@@ -74,14 +74,19 @@ Bind-mounting the single file `latest.log` locks the container to that one file.
    - A healthy startup prints `[Discord] Logged in as ...`, then `[RCON] Connected`, then `[LogWatcher] Watching /mc/logs/latest.log`.
    - If `latest.log` doesn't exist yet or the channel ID is wrong, the container exits and Docker restarts it.
 
-To run it without Docker:
+### Running without Docker
+
+Docker is optional. The bot is a plain Node app (Node 18+ is required for built-in `fetch`; 22 matches the Docker image):
 
 ```bash
 npm install
-MC_LOG_PATH=<server>/logs/latest.log npm run dev
+npm start        # or: npm run dev (restarts on file changes)
 ```
 
-Compose sets `MC_LOG_PATH` inside Docker, so outside Docker you have to set it yourself.
+- `MC_LOG_PATH` must be set in `.env` to the full path of `latest.log`. Compose sets it inside Docker, so it isn't in `.env.example`. `MC_LOG_HOST_DIR` is only used by compose.
+- `dotenv` loads `.env` from the working directory, so start the bot from the repo root.
+- Without Docker, nothing restarts the bot after it exits on purpose (missing log file, bad channel ID). Use systemd or pm2; the README has a sample systemd unit.
+- Log rotation isn't a problem here. `tail` reads the real file and follows the rename itself.
 
 ## Known issues / next work
 
