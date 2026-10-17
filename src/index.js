@@ -40,9 +40,12 @@ const bot = await createDiscordBot({
   fetchLatestFile,
   onMessage(username, content) {
     if (!content.trim()) return;
-    const safeName = username.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    const safeMsg = content.replace(/\\/g, '\\\\').replace(/"/g, '\\"').slice(0, 200);
-    rcon.send(`tellraw @a [{"text":"[Discord] ","color":"blue"},{"text":"${safeName}","bold":true},{"text":": ${safeMsg}"}]`);
+    // JSON.stringify escapes line breaks and control characters, which used to make the command invalid
+    rcon.send(`tellraw @a ${JSON.stringify([
+      { text: '[Discord] ', color: 'blue' },
+      { text: username, bold: true },
+      { text: `: ${content.slice(0, 200)}` },
+    ])}`);
   },
 });
 

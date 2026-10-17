@@ -31,7 +31,7 @@ MC server <──RCON tellraw / list── bot <──discord.js gateway── D
 
 | File | Purpose |
 |---|---|
-| `src/index.js` | Entry point. Checks environment variables and connects the parts. Escapes Discord text for `tellraw`, polls presence and status with RCON `list`, and starts the pack checker |
+| `src/index.js` | Entry point. Checks environment variables and connects the parts. Builds the `tellraw` text component with `JSON.stringify`, polls presence and status with RCON `list`, and starts the pack checker |
 | `src/discord/bot.js` | discord.js client that reads the channel, plus a `WebhookClient` that posts to it. Exports `sendEvent()`, `sendPackUpdate()` and `updatePresence()`, and registers `/checkupdate` when CurseForge is configured |
 | `src/minecraft/logWatcher.js` | Follows the log with the `tail` package, polling the file via `useWatchFile`. Restarts the tail after errors. `parseLine()` turns lines into events |
 | `src/minecraft/deathMessages.js` | Reads every `death.*` template from the `en_us.json` files in the server's jars (top level, `mods/`, `libraries/`, and nested `META-INF/jarjar` / `META-INF/versions` jars) and turns each into a regex. Only accepts deaths of players who are online. Falls back to a keyword list if the vanilla language file isn't found. Reloads when the server comes back online |
@@ -97,11 +97,10 @@ npm start        # or: npm run dev (restarts on file changes)
 These were found by reading the code and haven't been confirmed against a live server.
 
 1. **`.env.example` sets `RCON_HOST=host-gateway`.** That name doesn't resolve under `network_mode: host`. It should be `localhost`, which is what the README says.
-2. **Line breaks in Discord messages make the `tellraw` JSON invalid.** `index.js` escapes `\` and `"` but not `\n` or other control characters. Escape those too, or build the text component with `JSON.stringify`.
-3. **Messages that are only attachments, stickers or embeds** have empty text and are silently dropped. Consider sending `[attachment]` instead.
-4. **Player names are taken to be one word.** Death templates capture the victim as `\S+`, and joins and leaves use the first word of the line. A mod that adds prefixes or spaces to display names would break all three.
-5. **The pack checker keeps the last-seen version only in memory.** A release that comes out while the bot is down is never announced.
-6. **The `list` regex in `index.js`** expects the vanilla wording. A server or mod that changes it will make the bot report the server as permanently offline.
+2. **Messages that are only attachments, stickers or embeds** have empty text and are silently dropped. Consider sending `[attachment]` instead.
+3. **Player names are taken to be one word.** Death templates capture the victim as `\S+`, and joins and leaves use the first word of the line. A mod that adds prefixes or spaces to display names would break all three.
+4. **The pack checker keeps the last-seen version only in memory.** A release that comes out while the bot is down is never announced.
+5. **The `list` regex in `index.js`** expects the vanilla wording. A server or mod that changes it will make the bot report the server as permanently offline.
 7. There are no tests and no linter.
 
 ## Conventions
