@@ -6,7 +6,7 @@ Bridges chat between a Minecraft server and Discord. Works with NeoForge 1.21.1 
 
 - Minecraft chat shows up in Discord with the player's skin as the avatar
 - Discord messages show up in Minecraft chat
-- Join/leave and death messages are posted to Discord
+- Join/leave, death and advancement messages are posted to Discord (deaths are matched against the server's own vanilla and modded death messages)
 - Server start/stop is announced in Discord
 - Modpack update notifications when a new version is released on CurseForge (optional)
 
@@ -97,6 +97,8 @@ pm2 works too: `pm2 start src/index.js --name mc-discord`.
 | `DISCORD_WEBHOOK_URL` | Webhook URL for the same channel |
 | `MC_LOG_HOST_DIR` | Docker only. Path to the logs *directory* on the host machine (not `latest.log` itself — see note below) |
 | `MC_LOG_PATH` | Without Docker only. Full path to `latest.log` (Docker sets this itself) |
+| `MC_SERVER_HOST_DIR` | Docker only. Path to the server folder on the host. Mounted read-only so the bot can read death messages from the jars in `mods/` and `libraries/` |
+| `MC_SERVER_DIR` | (Optional) Without Docker only. Server folder; defaults to the folder above `logs/` |
 | `RCON_HOST` | RCON host (use `localhost` if server runs on the same machine) |
 | `RCON_PORT` | RCON port (default 25575) |
 | `RCON_PASSWORD` | RCON password |

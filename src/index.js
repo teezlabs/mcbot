@@ -1,7 +1,9 @@
 import 'dotenv/config';
+import path from 'path';
 import { createDiscordBot } from './discord/bot.js';
 import { watchLogs } from './minecraft/logWatcher.js';
 import { RconClient } from './minecraft/rcon.js';
+import { createDeathDetector } from './minecraft/deathMessages.js';
 import { startPackUpdateChecker, fetchPackName, fetchLatestFile } from './minecraft/packUpdater.js';
 
 const {
@@ -9,6 +11,7 @@ const {
   DISCORD_CHANNEL_ID,
   DISCORD_WEBHOOK_URL,
   MC_LOG_PATH,
+  MC_SERVER_DIR,
   RCON_HOST = 'localhost',
   RCON_PORT = '25575',
   RCON_PASSWORD,
@@ -50,7 +53,11 @@ const packName = CURSEFORGE_API_KEY && CURSEFORGE_PROJECT_ID
   : null;
 if (packName) console.log(`[PackUpdater] Pack name: ${packName}`);
 
-watchLogs(MC_LOG_PATH, (event) => bot.sendEvent(event));
+// Defaults to the folder above logs/, which is the server folder when running without Docker
+const deaths = createDeathDetector(MC_SERVER_DIR || (MC_LOG_PATH && path.resolve(path.dirname(MC_LOG_PATH), '..')));
+deaths.reload();
+
+watchLogs(MC_LOG_PATH, (event) => bot.sendEvent(event), deaths);
 
 let lastKnownOnline;
 
@@ -65,6 +72,7 @@ async function refreshPresence() {
     if (match) {
       const players = match[3].split(',').map((p) => p.trim()).filter(Boolean);
       bot.updatePresence({ online: Number(match[1]), max: Number(match[2]), players, serverOnline: true, packName });
+      deaths.setOnlinePlayers(players);
       isOnline = true;
     } else {
       bot.updatePresence({ serverOnline: false });
@@ -73,6 +81,8 @@ async function refreshPresence() {
 
   if (lastKnownOnline !== undefined && lastKnownOnline !== isOnline) {
     bot.sendEvent({ type: isOnline ? 'server_start' : 'server_stop' });
+    // Mods may have been added or updated while the server was down
+    if (isOnline) deaths.reload();
   }
   lastKnownOnline = isOnline;
 }

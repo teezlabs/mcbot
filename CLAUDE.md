@@ -34,9 +34,10 @@ MC server <──RCON tellraw / list── bot <──discord.js gateway── D
 | `src/index.js` | Entry point. Checks environment variables and connects the parts. Escapes Discord text for `tellraw`, polls presence and status with RCON `list`, and starts the pack checker |
 | `src/discord/bot.js` | discord.js client that reads the channel, plus a `WebhookClient` that posts to it. Exports `sendEvent()`, `sendPackUpdate()` and `updatePresence()`, and registers `/checkupdate` when CurseForge is configured |
 | `src/minecraft/logWatcher.js` | Follows the log with the `tail` package, polling the file via `useWatchFile`. Restarts the tail after errors. `parseLine()` turns lines into events |
+| `src/minecraft/deathMessages.js` | Reads every `death.*` template from the `en_us.json` files in the server's jars (top level, `mods/`, `libraries/`, and nested `META-INF/jarjar` / `META-INF/versions` jars) and turns each into a regex. Only accepts deaths of players who are online. Falls back to a keyword list if the vanilla language file isn't found. Reloads when the server comes back online |
 | `src/minecraft/rcon.js` | Wrapper around `rcon-client` that reconnects every 10s. `send()` ignores the server's response, `query()` returns it, and `connected` reports the connection state |
 | `src/minecraft/packUpdater.js` | Calls the CurseForge API: `fetchPackName`, `fetchLatestFile` and `startPackUpdateChecker` |
-| `docker-compose.yml` | One service on the host network. Mounts `${MC_LOG_HOST_DIR}` → `/mc/logs:ro` and sets `MC_LOG_PATH=/mc/logs/latest.log` |
+| `docker-compose.yml` | One service on the host network. Mounts `${MC_LOG_HOST_DIR}` → `/mc/logs:ro` and `${MC_SERVER_HOST_DIR}` → `/mc/server:ro`, and sets `MC_LOG_PATH` and `MC_SERVER_DIR` to match |
 | `.env.example` | Config template. Copy it to `.env`, which git ignores |
 
 ### Log format
@@ -54,7 +55,7 @@ Log events:
 - `chat`
 - `join` ("joined the game")
 - `leave` ("left the game")
-- `death` (matched against a keyword list)
+- `death` (matched against the death-message templates from the server's language files; the victim must be an online player)
 - `advancement` ("has made the advancement / completed the challenge / reached the goal [X]")
 
 ### Why the directory is mounted
@@ -67,11 +68,12 @@ Bind-mounting the single file `latest.log` locks the container to that one file.
 2. In this repo, run `cp .env.example .env` and fill it in:
    - `DISCORD_TOKEN`, `DISCORD_CHANNEL_ID`, `DISCORD_WEBHOOK_URL`. The webhook must belong to the **same** channel.
    - `MC_LOG_HOST_DIR`: the absolute path to `<server folder>/logs`. Use the directory, not the file.
+   - `MC_SERVER_HOST_DIR`: the absolute path to the server folder. It's mounted read-only so the bot can read death messages from the jars.
    - `RCON_HOST=localhost` (the example's `host-gateway` is wrong; see known issues). Set `RCON_PORT` and `RCON_PASSWORD` to match `server.properties`.
    - Optional: `CURSEFORGE_API_KEY`, `CURSEFORGE_PROJECT_ID` and `PACK_UPDATE_INTERVAL_MS` (default 1 hour).
 3. In the Discord developer portal, enable the **Message Content Intent** for the bot. In the channel, give it Send Messages and Read Message History.
 4. Run `docker compose up -d --build`, then `docker compose logs -f`.
-   - A healthy startup prints `[Discord] Logged in as ...`, then `[RCON] Connected`, then `[LogWatcher] Watching /mc/logs/latest.log`.
+   - A healthy startup prints `[Discord] Logged in as ...`, then `[RCON] Connected`, then `[LogWatcher] Watching /mc/logs/latest.log`, then `[DeathMessages] Loaded N death messages ...`. N should be at least 99, the vanilla count for 1.21.1.
    - If `latest.log` doesn't exist yet or the channel ID is wrong, the container exits and Docker restarts it.
 
 ### Running without Docker
@@ -95,7 +97,7 @@ These were found by reading the code and haven't been confirmed against a live s
 1. **`.env.example` sets `RCON_HOST=host-gateway`.** That name doesn't resolve under `network_mode: host`. It should be `localhost`, which is what the README says.
 2. **Line breaks in Discord messages make the `tellraw` JSON invalid.** `index.js` escapes `\` and `"` but not `\n` or other control characters. Escape those too, or build the text component with `JSON.stringify`.
 3. **Messages that are only attachments, stickers or embeds** have empty text and are silently dropped. Consider sending `[attachment]` instead.
-4. **Death detection matches keywords.** The only other check is that the line came from the `MinecraftServer` logger. Deaths of named mobs, such as "Villager ... died, message: ...", may be posted as player deaths. For deaths, joins and leaves, the player's name is taken to be the first word of the line.
+4. **Player names are taken to be one word.** Death templates capture the victim as `\S+`, and joins and leaves use the first word of the line. A mod that adds prefixes or spaces to display names would break all three.
 5. **The pack checker keeps the last-seen version only in memory.** A release that comes out while the bot is down is never announced.
 6. **The `list` regex in `index.js`** expects the vanilla wording. A server or mod that changes it will make the bot report the server as permanently offline.
 7. There are no tests and no linter.
