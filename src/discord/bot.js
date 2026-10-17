@@ -92,7 +92,8 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
   client.on(Events.MessageCreate, (msg) => {
     if (msg.channelId !== channelId) return;
     if (msg.author.bot) return;
-    onMessage(msg.author.displayName ?? msg.author.username, msg.content);
+    // cleanContent turns <@id>, <@&id>, <#id> and custom emoji into @Name, @Role, #channel and :emoji:
+    onMessage(msg.author.displayName ?? msg.author.username, msg.cleanContent);
   });
 
   async function sendEvent(event) {

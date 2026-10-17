@@ -22,7 +22,7 @@ MC server <──RCON tellraw / list── bot <──discord.js gateway── D
 ```
 
 - **MC → Discord:** the bot follows the server's `logs/latest.log` as it grows. The whole `logs/` directory is bind-mounted read-only into the container. The bot turns each relevant line into an event and posts it through a **Discord webhook**, so each message shows the player's name and their face as the avatar. The image comes from Minotar by default, requested by UUID; `AVATAR_URL` overrides it. mc-heads.net, the old default, now returns the default Steve head for players with custom skins.
-- **Discord → MC:** a discord.js v14 bot reads messages in one channel and sends them into the game with RCON `tellraw @a`, shown as `[Discord] Name: msg`.
+- **Discord → MC:** a discord.js v14 bot reads messages in one channel and sends them into the game with RCON `tellraw @a`, shown as `[Discord] Name: msg`. Pings, role and channel mentions and custom emoji are converted to readable text with `cleanContent`.
 - **Server status:** every 30s, `index.js` runs RCON `list`. The result updates the bot's presence. A change between online and offline triggers a `server_start` or `server_stop` event. Server status doesn't come from log lines.
 - **Pack updates (optional):** `packUpdater.js` polls the CurseForge API. The first check only records the current file. After that, a new file ID posts an update embed.
 - The container uses the `node:22-alpine` image and `network_mode: host`, so RCON on `localhost:25575` reaches the server on the host.
