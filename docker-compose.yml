@@ -6,5 +6,7 @@ services:
     env_file: .env
     environment:
       MC_LOG_PATH: /mc/logs/latest.log
+      MC_SERVER_DIR: /mc/server
     volumes:
       - ${MC_LOG_HOST_DIR}:/mc/logs:ro
+      - ${MC_SERVER_HOST_DIR:?Set MC_SERVER_HOST_DIR in .env to the Minecraft server folder}:/mc/server:ro

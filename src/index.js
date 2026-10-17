@@ -1,7 +1,9 @@
 import 'dotenv/config';
+import path from 'path';
 import { createDiscordBot } from './discord/bot.js';
 import { watchLogs } from './minecraft/logWatcher.js';
 import { RconClient } from './minecraft/rcon.js';
+import { createDeathDetector } from './minecraft/deathMessages.js';
 import { startPackUpdateChecker, fetchPackName, fetchLatestFile } from './minecraft/packUpdater.js';
 
 const {
@@ -9,6 +11,7 @@ const {
   DISCORD_CHANNEL_ID,
   DISCORD_WEBHOOK_URL,
   MC_LOG_PATH,
+  MC_SERVER_DIR,
   RCON_HOST = 'localhost',
   RCON_PORT = '25575',
   RCON_PASSWORD,
@@ -37,20 +40,28 @@ const bot = await createDiscordBot({
   fetchLatestFile,
   onMessage(username, content) {
     if (!content.trim()) return;
-    const safeName = username.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    const safeMsg = content.replace(/\\/g, '\\\\').replace(/"/g, '\\"').slice(0, 200);
-    rcon.send(`tellraw @a [{"text":"[Discord] ","color":"blue"},{"text":"${safeName}","bold":true},{"text":": ${safeMsg}"}]`);
+    // JSON.stringify escapes line breaks and control characters, which used to make the command invalid
+    // Vanilla-style line: [DISCORD] <Name> message. The leading '' keeps the parts from inheriting each other's style
+    rcon.send(`tellraw @a ${JSON.stringify([
+      '',
+      { text: '[DISCORD] ', color: 'blue', bold: true },
+      { text: `<${username}> ${content.slice(0, 200)}`, color: 'white' },
+    ])}`);
   },
 });
 
 await rcon.connect();
 
-const packName = CURSEFORGE_API_KEY && CURSEFORGE_PROJECT_ID
+const packName = process.env.PACK_NAME || (CURSEFORGE_API_KEY && CURSEFORGE_PROJECT_ID
   ? await fetchPackName(CURSEFORGE_PROJECT_ID, CURSEFORGE_API_KEY)
-  : null;
+  : null);
 if (packName) console.log(`[PackUpdater] Pack name: ${packName}`);
 
-watchLogs(MC_LOG_PATH, (event) => bot.sendEvent(event));
+// Defaults to the folder above logs/, which is the server folder when running without Docker
+const deaths = createDeathDetector(MC_SERVER_DIR || (MC_LOG_PATH && path.resolve(path.dirname(MC_LOG_PATH), '..')));
+deaths.reload();
+
+watchLogs(MC_LOG_PATH, (event) => bot.sendEvent(event), deaths);
 
 let lastKnownOnline;
 
@@ -65,6 +76,7 @@ async function refreshPresence() {
     if (match) {
       const players = match[3].split(',').map((p) => p.trim()).filter(Boolean);
       bot.updatePresence({ online: Number(match[1]), max: Number(match[2]), players, serverOnline: true, packName });
+      deaths.setOnlinePlayers(players);
       isOnline = true;
     } else {
       bot.updatePresence({ serverOnline: false });
@@ -73,6 +85,8 @@ async function refreshPresence() {
 
   if (lastKnownOnline !== undefined && lastKnownOnline !== isOnline) {
     bot.sendEvent({ type: isOnline ? 'server_start' : 'server_stop' });
+    // Mods may have been added or updated while the server was down
+    if (isOnline) deaths.reload();
   }
   lastKnownOnline = isOnline;
 }
