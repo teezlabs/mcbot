@@ -41,10 +41,11 @@ const bot = await createDiscordBot({
   onMessage(username, content) {
     if (!content.trim()) return;
     // JSON.stringify escapes line breaks and control characters, which used to make the command invalid
+    // Vanilla-style line: [DISCORD] <Name> message. The leading '' keeps the parts from inheriting each other's style
     rcon.send(`tellraw @a ${JSON.stringify([
-      { text: '[Discord] ', color: 'blue' },
-      { text: username, bold: true },
-      { text: `: ${content.slice(0, 200)}` },
+      '',
+      { text: '[DISCORD] ', color: 'blue', bold: true },
+      { text: `<${username}> ${content.slice(0, 200)}`, color: 'white' },
     ])}`);
   },
 });
