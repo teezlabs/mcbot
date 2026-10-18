@@ -8,18 +8,26 @@ export class RconClient {
   }
 
   async connect() {
+    // Listeners go on before connect(): rcon-client emits socket errors as soon as the TCP connection
+    // is up, and a reset during auth (Docker's port proxy does this while the server starts) would
+    // otherwise be an unhandled 'error' event that crashes the bot
+    const rcon = new Rcon(this.config);
+    rcon.on('error', (err) => {
+      if (this.rcon !== rcon) return;
+      console.error('[RCON] Error:', err.message);
+      this._scheduleReconnect();
+    });
+    rcon.on('end', () => {
+      if (this.rcon !== rcon) return;
+      console.warn('[RCON] Connection closed, reconnecting...');
+      this._scheduleReconnect();
+    });
     try {
-      this.rcon = await Rcon.connect(this.config);
+      await rcon.connect();
+      this.rcon = rcon;
       console.log('[RCON] Connected');
-      this.rcon.on('error', (err) => {
-        console.error('[RCON] Error:', err.message);
-        this._scheduleReconnect();
-      });
-      this.rcon.socket.on('close', () => {
-        console.warn('[RCON] Connection closed, reconnecting...');
-        this._scheduleReconnect();
-      });
     } catch (err) {
+      rcon.socket?.destroy();
       console.error('[RCON] Failed to connect:', err.message);
       console.warn('[RCON] Retrying in 10s... (is the server running and RCON enabled?)');
       this._scheduleReconnect();
