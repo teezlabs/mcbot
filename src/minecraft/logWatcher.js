@@ -17,9 +17,20 @@ export function parseLine(line, deaths) {
   // Only care about the main server logger for game events
   if (!logger.includes('MinecraftServer') && !logger.includes('minecraft/MinecraftServer')) return null;
 
-  if (content.startsWith('<')) {
-    const chat = /^<([^>]+)> (.+)$/.exec(content);
+  // Unsigned chat is logged as "[Not Secure] <Player> msg" on 1.19+
+  const text = content.replace(/^\[Not Secure\] /, '');
+
+  if (text.startsWith('<')) {
+    const chat = /^<([^>]+)> (.+)$/.exec(text);
     if (chat) return { type: 'chat', player: chat[1], message: chat[2] };
+  }
+
+  // /say from RCON, the console or a player: "[Rcon] msg", "[Server] msg", "[Player] msg".
+  // No ':' or '[' in the sender, so command feedback like "[Player: Gave 1 [Diamond] to X]" is skipped.
+  // Mods log status the same way ("[Chunky] Task running..."), so a player sender must be online
+  const say = /^\[([^\[\]:]+)\] (.+)$/.exec(text);
+  if (say && (say[1] === 'Rcon' || say[1] === 'Server' || deaths.isOnline(say[1]))) {
+    return { type: 'say', sender: say[1], message: say[2] };
   }
 
   if (content.endsWith('joined the game')) {

@@ -185,6 +185,7 @@ export function createDeathDetector(serverDir) {
   return {
     reload,
     match,
+    isOnline(player) { return online?.has(player) ?? false; },
     setOnlinePlayers(players) { online = new Set(players); },
     playerJoined(player) { online?.add(player); },
     playerLeft(player) { online?.delete(player); },
