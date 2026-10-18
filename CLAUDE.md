@@ -9,6 +9,7 @@ This bot connects a Minecraft server's chat with a Discord channel. It runs on i
 Features:
 
 - Minecraft chat, joins and leaves, deaths and advancements are posted to Discord, with the player's skin as the avatar
+- `/say` messages from the console, RCON or players are posted too
 - Discord messages appear in Minecraft chat
 - The server going online or offline is announced in Discord
 - The bot's Discord presence shows the pack name, the player count and who is online
@@ -53,11 +54,12 @@ The timestamp includes the date and milliseconds, and there are **three** bracke
 
 Log events:
 
-- `chat`
+- `chat` (also "[Not Secure] <Name> msg", how 1.19+ logs unsigned chat)
 - `join` ("joined the game")
 - `leave` ("left the game")
 - `death` (matched against the death-message templates from the server's language files; the victim must be an online player)
 - `advancement` ("has made the advancement / completed the challenge / reached the goal [X]")
+- `say` ("[Rcon] msg", "[Server] msg", or "[Player] msg" from an online player). Mods log status lines in the same format, such as "[Chunky] Task running...", so other senders are ignored
 
 ### Why the directory is mounted
 

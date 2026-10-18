@@ -20,6 +20,11 @@ const ADVANCEMENT_VERB = {
 // but it now returns the default Steve head even for players with custom skins.
 const DEFAULT_AVATAR_URL = 'https://minotar.net/helm/{id}/64.png';
 
+// Discord rejects messages over 2000 characters, and /say expands selectors like @e into long entity lists
+function clip(text) {
+  return text.length > 2000 ? `${text.slice(0, 1999)}…` : text;
+}
+
 function avatarURL(player) {
   return (process.env.AVATAR_URL || DEFAULT_AVATAR_URL).replaceAll('{id}', uuidFor(player) ?? player);
 }
@@ -47,7 +52,8 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
     process.exit(1);
   }
 
-  const webhook = new WebhookClient({ url: webhookUrl });
+  // Nothing from Minecraft may ping: players could otherwise type @everyone in game
+  const webhook = new WebhookClient({ url: webhookUrl }, { allowedMentions: { parse: [] } });
 
   // Register slash commands
   if (curseforgeProjectId && curseforgeApiKey) {
@@ -103,9 +109,19 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
           await webhook.send({
             username: event.player,
             avatarURL: avatarURL(event.player),
-            content: event.message,
+            content: clip(event.message),
           });
           break;
+
+        case 'say': {
+          const fromServer = event.sender === 'Rcon' || event.sender === 'Server';
+          await webhook.send({
+            username: fromServer ? 'Server' : event.sender,
+            avatarURL: fromServer ? undefined : avatarURL(event.sender),
+            content: clip(event.message),
+          });
+          break;
+        }
 
         case 'join':
         case 'leave':

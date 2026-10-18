@@ -5,7 +5,9 @@ Bridges chat between a Minecraft server and Discord. Works with NeoForge 1.21.1 
 ## What it does
 
 - Minecraft chat shows up in Discord with the player's skin as the avatar
+- `/say` messages from the console, RCON or players show up in Discord
 - Discord messages show up in Minecraft chat
+- Nothing from Minecraft can ping in Discord (`@everyone`, `@here`, roles and users are shown as plain text)
 - Join/leave, death and advancement messages are posted to Discord (deaths are matched against the server's own vanilla and modded death messages)
 - Server start/stop is announced in Discord
 - Modpack update notifications when a new version is released on CurseForge (optional)
