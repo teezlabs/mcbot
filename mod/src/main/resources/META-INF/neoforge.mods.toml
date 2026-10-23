@@ -1,0 +1,25 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "All Rights Reserved"
+
+[[mods]]
+modId = "mcdiscord"
+version = "${version}"
+displayName = "MC-Discord"
+description = '''Server-side helper for the MC-Discord bridge. Offers Discord names as @ Tab completions in chat.'''
+# Server-only: clients don't need it and can join with or without it
+displayTest = "IGNORE_ALL_VERSION"
+
+[[dependencies.mcdiscord]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.mcdiscord]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1,1.22)"
+ordering = "NONE"
+side = "BOTH"
