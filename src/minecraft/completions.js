@@ -4,11 +4,19 @@ export function createCompletionSync(rcon) {
   let names = [];
   let modMissing = false;
   let queue = Promise.resolve();
+  let retryTimer = null;
 
   async function sync() {
     if (!rcon.connected || modMissing) return;
     const reply = await rcon.query('mcdiscord names clear');
-    if (reply === null) return;
+    if (reply === null) {
+      // Right after it starts, the server can be too busy to answer before rcon-client times out
+      retryTimer ??= setTimeout(() => {
+        retryTimer = null;
+        schedule();
+      }, 30_000);
+      return;
+    }
     if (!reply.startsWith('mcdiscord:')) {
       modMissing = true;
       console.warn('[Completions] mcdiscord mod not found on the server, so @name Tab completion is off');
