@@ -4,6 +4,7 @@ import { createDiscordBot } from './discord/bot.js';
 import { watchLogs } from './minecraft/logWatcher.js';
 import { RconClient } from './minecraft/rcon.js';
 import { createDeathDetector } from './minecraft/deathMessages.js';
+import { createCompletionSync } from './minecraft/completions.js';
 import { startPackUpdateChecker, fetchPackName, fetchLatestFile } from './minecraft/packUpdater.js';
 
 const {
@@ -18,6 +19,7 @@ const {
   CURSEFORGE_API_KEY,
   CURSEFORGE_PROJECT_ID,
   PACK_UPDATE_INTERVAL_MS = '3600000',
+  DISCORD_MENTIONS,
 } = process.env;
 
 const missing = ['DISCORD_TOKEN', 'DISCORD_CHANNEL_ID', 'DISCORD_WEBHOOK_URL', 'RCON_PASSWORD']
@@ -29,12 +31,20 @@ if (missing.length) {
   process.exit(1);
 }
 
-const rcon = new RconClient({ host: RCON_HOST, port: RCON_PORT, password: RCON_PASSWORD });
+const rcon = new RconClient({
+  host: RCON_HOST,
+  port: RCON_PORT,
+  password: RCON_PASSWORD,
+  onConnect: () => completions.resync(),
+});
+const completions = createCompletionSync(rcon);
 
 const bot = await createDiscordBot({
   token: DISCORD_TOKEN,
   channelId: DISCORD_CHANNEL_ID,
   webhookUrl: DISCORD_WEBHOOK_URL,
+  mentionsEnabled: DISCORD_MENTIONS === 'true',
+  onMentionNames: (names) => completions.setNames(names),
   curseforgeProjectId: CURSEFORGE_PROJECT_ID,
   curseforgeApiKey: CURSEFORGE_API_KEY,
   fetchLatestFile,

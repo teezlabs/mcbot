@@ -1,0 +1,31 @@
+plugins {
+    id 'java'
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+
+version = '0.1.0'
+group = 'pink.teezlabs.mcdiscord'
+base.archivesName = 'mcdiscord'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+neoForge {
+    version = '21.1.264'
+    runs {
+        server {
+            server()
+        }
+    }
+    mods {
+        mcdiscord {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+processResources {
+    inputs.property 'version', version
+    filesMatching('META-INF/neoforge.mods.toml') {
+        expand version: version
+    }
+}

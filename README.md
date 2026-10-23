@@ -7,7 +7,8 @@ Bridges chat between a Minecraft server and Discord. Works with NeoForge 1.21.1 
 - Minecraft chat shows up in Discord with the player's skin as the avatar
 - `/say` messages from the console, RCON or players show up in Discord
 - Discord messages show up in Minecraft chat
-- Nothing from Minecraft can ping in Discord (`@everyone`, `@here`, roles and users are shown as plain text)
+- Nothing from Minecraft can ping in Discord by default. With `DISCORD_MENTIONS=true`, `@Name` pings members who can see the channel and mentionable roles; `@everyone` and `@here` never ping
+- With the optional server mod in `mod/`, players can type `@Te` and press Tab to complete Discord names in chat
 - Join/leave, death and advancement messages are posted to Discord (deaths are matched against the server's own vanilla and modded death messages)
 - Server start/stop is announced in Discord
 - Modpack update notifications when a new version is released on CurseForge (optional)
@@ -108,6 +109,18 @@ pm2 works too: `pm2 start src/index.js --name mc-discord`.
 | `CURSEFORGE_PROJECT_ID` | (Optional) CurseForge project ID of the modpack |
 | `PACK_UPDATE_INTERVAL_MS` | (Optional) How often to check for updates in ms (default: `3600000` = 1 hour) |
 | `PACK_NAME` | (Optional) Name shown in the bot's status. Defaults to the CurseForge project name; works without a CurseForge key |
+| `DISCORD_MENTIONS` | (Optional) `true` lets `@Name` in Minecraft chat ping Discord members and mentionable roles. Needs the **Server Members Intent** turned on in the developer portal |
 | `AVATAR_URL` | (Optional) Avatar image for Minecraft messages. `{id}` becomes the player's UUID, or their name if the UUID isn't known yet (default: `https://minotar.net/helm/{id}/64.png`) |
+
+## @name Tab completion (optional server mod)
+
+With `DISCORD_MENTIONS=true`, the bot can also send the server the names players can ping. The small NeoForge 1.21.1 mod in `mod/` turns them into chat Tab completions: type `@Te`, press Tab, get `@Teez`. It is server-side only, so players don't need to install anything.
+
+```bash
+cd mod
+./gradlew build          # needs JDK 21; the jar lands in build/libs/mcdiscord-<version>.jar
+```
+
+Copy the jar into the server's `mods/` folder and restart the server. The bot pushes the names over RCON (`mcdiscord names clear` / `mcdiscord names add <name>`) every time RCON connects and whenever members, nicknames or roles change. Without the mod, the bot logs one warning and pings still work.
 
 > **Why the directory?** Bind-mounting a single file pins its inode in the container. When Minecraft rotates `latest.log`, the container keeps tailing the old (now archived) file and stops seeing new messages. Mounting the directory makes rotation transparent.

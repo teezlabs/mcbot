@@ -1,5 +1,6 @@
 import { Client, GatewayIntentBits, Events, WebhookClient, ActivityType, REST, Routes, SlashCommandBuilder } from 'discord.js';
 import { uuidFor } from '../minecraft/playerUuids.js';
+import { createMentions } from './mentions.js';
 
 const COLORS = {
   join: 0x57F287,   // green
@@ -29,12 +30,14 @@ function avatarURL(player) {
   return (process.env.AVATAR_URL || DEFAULT_AVATAR_URL).replaceAll('{id}', uuidFor(player) ?? player);
 }
 
-export async function createDiscordBot({ token, channelId, webhookUrl, onMessage, curseforgeProjectId, curseforgeApiKey, fetchLatestFile }) {
+export async function createDiscordBot({ token, channelId, webhookUrl, onMessage, mentionsEnabled, onMentionNames, curseforgeProjectId, curseforgeApiKey, fetchLatestFile }) {
   const client = new Client({
     intents: [
       GatewayIntentBits.Guilds,
       GatewayIntentBits.GuildMessages,
       GatewayIntentBits.MessageContent,
+      // Privileged: has to be switched on in the developer portal, so it's only asked for when needed
+      ...(mentionsEnabled ? [GatewayIntentBits.GuildMembers] : []),
     ],
   });
 
@@ -52,8 +55,20 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
     process.exit(1);
   }
 
-  // Nothing from Minecraft may ping: players could otherwise type @everyone in game
+  // Nothing from Minecraft may ping unless mentions resolves it: players could otherwise type @everyone in game
   const webhook = new WebhookClient({ url: webhookUrl }, { allowedMentions: { parse: [] } });
+
+  const mentions = mentionsEnabled ? await createMentions(client, channel) : null;
+  if (mentions && onMentionNames) {
+    mentions.onNamesChange(onMentionNames);
+    onMentionNames(mentions.names());
+  }
+
+  function chatContent(text) {
+    if (!mentions) return { content: clip(text) };
+    const { content, allowedMentions } = mentions.resolve(text);
+    return { content: clip(content), allowedMentions };
+  }
 
   // Register slash commands
   if (curseforgeProjectId && curseforgeApiKey) {
@@ -109,7 +124,7 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
           await webhook.send({
             username: event.player,
             avatarURL: avatarURL(event.player),
-            content: clip(event.message),
+            ...chatContent(event.message),
           });
           break;
 
@@ -118,7 +133,7 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
           await webhook.send({
             username: fromServer ? 'Server' : event.sender,
             avatarURL: fromServer ? undefined : avatarURL(event.sender),
-            content: clip(event.message),
+            ...chatContent(event.message),
           });
           break;
         }

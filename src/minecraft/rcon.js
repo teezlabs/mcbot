@@ -1,8 +1,9 @@
 import { Rcon } from 'rcon-client';
 
 export class RconClient {
-  constructor({ host, port, password }) {
+  constructor({ host, port, password, onConnect }) {
     this.config = { host, port: Number(port), password };
+    this.onConnect = onConnect;
     this.rcon = null;
     this.reconnectTimer = null;
   }
@@ -26,6 +27,7 @@ export class RconClient {
       await rcon.connect();
       this.rcon = rcon;
       console.log('[RCON] Connected');
+      this.onConnect?.();
     } catch (err) {
       rcon.socket?.destroy();
       console.error('[RCON] Failed to connect:', err.message);
