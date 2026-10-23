@@ -116,6 +116,8 @@ pm2 works too: `pm2 start src/index.js --name mc-discord`.
 
 With `DISCORD_MENTIONS=true`, the bot can also send the server the names players can ping. The small NeoForge 1.21.1 mod in `mod/` turns them into chat Tab completions: type `@Te`, press Tab, get `@Teez`. It is server-side only, so players don't need to install anything.
 
+Download `mcdiscord-<version>.jar` from the [releases page](https://github.com/teezlabs/mcbot/releases), or with `gh release download mcdiscord-mod-v0.1.0 -R teezlabs/mcbot`. To build it yourself instead:
+
 ```bash
 cd mod
 ./gradlew build          # needs JDK 21; the jar lands in build/libs/mcdiscord-<version>.jar
