@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Events, WebhookClient, ActivityType, REST, Routes, SlashCommandBuilder } from 'discord.js';
+import { Client, GatewayIntentBits, Events, WebhookClient, ActivityType, Routes, SlashCommandBuilder } from 'discord.js';
 import { uuidFor } from '../minecraft/playerUuids.js';
 import { createMentions } from './mentions.js';
 
@@ -30,8 +30,11 @@ function avatarURL(player) {
   return (process.env.AVATAR_URL || DEFAULT_AVATAR_URL).replaceAll('{id}', uuidFor(player) ?? player);
 }
 
-export async function createDiscordBot({ token, channelId, webhookUrl, onMessage, mentionsEnabled, onMentionNames, curseforgeProjectId, curseforgeApiKey, fetchLatestFile }) {
+// Also drives GameVox, which speaks the Discord API: api and gatewayURL point discord.js at its hosts instead
+export async function createDiscordBot({ label = 'Discord', api, gatewayURL, token, channelId, webhookUrl, onMessage, mentionsEnabled, onMentionNames, curseforgeProjectId, curseforgeApiKey, fetchLatestFile }) {
   const client = new Client({
+    ...(api && { rest: { api: `${api}/api` } }),
+    ...(gatewayURL && { ws: { gatewayURL } }),
     intents: [
       GatewayIntentBits.Guilds,
       GatewayIntentBits.GuildMessages,
@@ -47,16 +50,29 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
     client.login(token).catch(reject);
   });
 
-  console.log(`[Discord] Logged in as ${client.user.tag}`);
+  console.log(`[${label}] Logged in as ${client.user.tag}`);
 
   const channel = await client.channels.fetch(channelId).catch(() => null);
   if (!channel) {
-    console.error(`[Discord] Channel ${channelId} not found.`);
+    console.error(`[${label}] Channel ${channelId} not found.`);
     process.exit(1);
   }
 
   // Nothing from Minecraft may ping unless mentions resolves it: players could otherwise type @everyone in game
-  const webhook = new WebhookClient({ url: webhookUrl }, { allowedMentions: { parse: [] } });
+  const webhook = webhookUrl && new WebhookClient({ url: webhookUrl }, { allowedMentions: { parse: [] } });
+
+  // GameVox webhooks can't set a username or avatar, so without a webhook the bot posts itself and the
+  // sender goes in the embed's author line
+  function post(message) {
+    if (webhook) return webhook.send(message);
+    const { username, avatarURL, content, allowedMentions, embeds = [] } = message;
+    const author = username && { name: username, icon_url: avatarURL };
+    const [first = {}, ...others] = content ? [{ description: content }] : embeds;
+    return channel.send({
+      embeds: [{ ...first, author }, ...others],
+      allowedMentions: allowedMentions ?? { parse: [] },
+    });
+  }
 
   const mentions = mentionsEnabled ? await createMentions(client, channel) : null;
   if (mentions && onMentionNames) {
@@ -72,16 +88,15 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
 
   // Register slash commands
   if (curseforgeProjectId && curseforgeApiKey) {
-    const rest = new REST().setToken(token);
     const commands = [
       new SlashCommandBuilder()
         .setName('checkupdate')
         .setDescription('Check for the latest modpack update on CurseForge')
         .toJSON(),
     ];
-    await rest.put(Routes.applicationCommands(client.user.id), { body: commands })
-      .then(() => console.log('[Discord] Slash commands registered'))
-      .catch((err) => console.error('[Discord] Failed to register commands:', err.message));
+    await client.rest.put(Routes.applicationCommands(client.user.id), { body: commands })
+      .then(() => console.log(`[${label}] Slash commands registered`))
+      .catch((err) => console.error(`[${label}] Failed to register commands:`, err.message));
 
     client.on(Events.InteractionCreate, async (interaction) => {
       if (!interaction.isChatInputCommand() || interaction.commandName !== 'checkupdate') return;
@@ -104,12 +119,12 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
         });
       } catch (err) {
         await interaction.editReply('Failed to check for updates.');
-        console.error('[Discord] /checkupdate error:', err.message);
+        console.error(`[${label}] /checkupdate error:`, err.message);
       }
     });
   }
 
-  // Discord -> Minecraft
+  // Discord/GameVox -> Minecraft
   client.on(Events.MessageCreate, (msg) => {
     if (msg.channelId !== channelId) return;
     if (msg.author.bot) return;
@@ -121,7 +136,7 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
     try {
       switch (event.type) {
         case 'chat':
-          await webhook.send({
+          await post({
             username: event.player,
             avatarURL: avatarURL(event.player),
             ...chatContent(event.message),
@@ -130,7 +145,7 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
 
         case 'say': {
           const fromServer = event.sender === 'Rcon' || event.sender === 'Server';
-          await webhook.send({
+          await post({
             username: fromServer ? 'Server' : event.sender,
             avatarURL: fromServer ? undefined : avatarURL(event.sender),
             ...chatContent(event.message),
@@ -141,7 +156,7 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
         case 'join':
         case 'leave':
         case 'death':
-          await webhook.send({
+          await post({
             username: event.player,
             avatarURL: avatarURL(event.player),
             embeds: [{
@@ -154,7 +169,7 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
           break;
 
         case 'advancement':
-          await webhook.send({
+          await post({
             username: event.player,
             avatarURL: avatarURL(event.player),
             embeds: [{
@@ -166,7 +181,7 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
 
         case 'server_start':
         case 'server_stop':
-          await webhook.send({
+          await post({
             username: 'Server',
             embeds: [{
               description: event.type === 'server_start' ? 'Server is online' : 'Server is offline',
@@ -176,13 +191,13 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
           break;
       }
     } catch (err) {
-      console.error('[Discord] Failed to send:', err.message);
+      console.error(`[${label}] Failed to send:`, err.message);
     }
   }
 
   async function sendPackUpdate(file) {
     try {
-      await webhook.send({
+      await post({
         username: 'Pack Updates',
         embeds: [{
           title: 'New modpack update available!',
@@ -193,7 +208,7 @@ export async function createDiscordBot({ token, channelId, webhookUrl, onMessage
         }],
       });
     } catch (err) {
-      console.error('[Discord] Failed to send pack update:', err.message);
+      console.error(`[${label}] Failed to send pack update:`, err.message);
     }
   }
 

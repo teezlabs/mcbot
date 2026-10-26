@@ -20,10 +20,22 @@ const {
   CURSEFORGE_PROJECT_ID,
   PACK_UPDATE_INTERVAL_MS = '3600000',
   DISCORD_MENTIONS,
+  GAMEVOX_TOKEN,
+  GAMEVOX_CHANNEL_ID,
+  GAMEVOX_API = 'https://app-api.gamevox.com',
+  GAMEVOX_GATEWAY = 'wss://gateway.gamevox.com',
 } = process.env;
 
-const missing = ['DISCORD_TOKEN', 'DISCORD_CHANNEL_ID', 'DISCORD_WEBHOOK_URL', 'RCON_PASSWORD']
-  .filter((k) => !process.env[k]);
+const useDiscord = Boolean(DISCORD_TOKEN);
+const useGameVox = Boolean(GAMEVOX_TOKEN);
+
+const missing = [
+  'RCON_PASSWORD',
+  ...(useDiscord ? ['DISCORD_CHANNEL_ID', 'DISCORD_WEBHOOK_URL'] : []),
+  ...(useGameVox ? ['GAMEVOX_CHANNEL_ID'] : []),
+].filter((k) => !process.env[k]);
+
+if (!useDiscord && !useGameVox) missing.unshift('DISCORD_TOKEN or GAMEVOX_TOKEN');
 
 if (missing.length) {
   console.error(`Missing required env vars: ${missing.join(', ')}`);
@@ -39,26 +51,58 @@ const rcon = new RconClient({
 });
 const completions = createCompletionSync(rcon);
 
-const bot = await createDiscordBot({
-  token: DISCORD_TOKEN,
-  channelId: DISCORD_CHANNEL_ID,
-  webhookUrl: DISCORD_WEBHOOK_URL,
-  mentionsEnabled: DISCORD_MENTIONS === 'true',
-  onMentionNames: (names) => completions.setNames(names),
+// Vanilla-style line: [DISCORD] <Name> message. The leading '' keeps the parts from inheriting each other's style
+function relayToMinecraft(tag, color) {
+  return (username, content) => {
+    if (!content.trim()) return;
+    // JSON.stringify escapes line breaks and control characters, which used to make the command invalid
+    rcon.send(`tellraw @a ${JSON.stringify([
+      '',
+      { text: `[${tag}] `, color, bold: true },
+      { text: `<${username}> ${content.slice(0, 200)}`, color: 'white' },
+    ])}`);
+  };
+}
+
+const shared = {
   curseforgeProjectId: CURSEFORGE_PROJECT_ID,
   curseforgeApiKey: CURSEFORGE_API_KEY,
   fetchLatestFile,
-  onMessage(username, content) {
-    if (!content.trim()) return;
-    // JSON.stringify escapes line breaks and control characters, which used to make the command invalid
-    // Vanilla-style line: [DISCORD] <Name> message. The leading '' keeps the parts from inheriting each other's style
-    rcon.send(`tellraw @a ${JSON.stringify([
-      '',
-      { text: '[DISCORD] ', color: 'blue', bold: true },
-      { text: `<${username}> ${content.slice(0, 200)}`, color: 'white' },
-    ])}`);
-  },
-});
+};
+
+const bots = [];
+
+if (useDiscord) {
+  bots.push(await createDiscordBot({
+    ...shared,
+    token: DISCORD_TOKEN,
+    channelId: DISCORD_CHANNEL_ID,
+    webhookUrl: DISCORD_WEBHOOK_URL,
+    // Only Discord feeds the Tab completions: the mod keeps one list, and two platforms would keep replacing it
+    mentionsEnabled: DISCORD_MENTIONS === 'true',
+    onMentionNames: (names) => completions.setNames(names),
+    onMessage: relayToMinecraft('DISCORD', 'blue'),
+  }));
+}
+
+// GameVox speaks the Discord API. It gets no webhook because GameVox webhooks always post as the bot
+if (useGameVox) {
+  bots.push(await createDiscordBot({
+    ...shared,
+    label: 'GameVox',
+    api: GAMEVOX_API,
+    gatewayURL: GAMEVOX_GATEWAY,
+    token: GAMEVOX_TOKEN,
+    channelId: GAMEVOX_CHANNEL_ID,
+    onMessage: relayToMinecraft('GAMEVOX', 'gold'),
+  }));
+}
+
+const bot = {
+  sendEvent: (event) => bots.forEach((b) => b.sendEvent(event)),
+  sendPackUpdate: (file) => bots.forEach((b) => b.sendPackUpdate(file)),
+  updatePresence: (status) => bots.forEach((b) => b.updatePresence(status)),
+};
 
 await rcon.connect();
 

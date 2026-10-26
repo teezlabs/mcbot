@@ -1,6 +1,6 @@
 # MC-Discord Bridge
 
-Bridges chat between a Minecraft server and Discord. Works with NeoForge 1.21.1 (and most other server types). Runs as a Docker container or directly with Node.js.
+Bridges chat between a Minecraft server and Discord, [GameVox](https://gamevox.com), or both at once. Works with NeoForge 1.21.1 (and most other server types). Runs as a Docker container or directly with Node.js.
 
 ## What it does
 
@@ -12,11 +12,12 @@ Bridges chat between a Minecraft server and Discord. Works with NeoForge 1.21.1 
 - Join/leave, death and advancement messages are posted to Discord (deaths are matched against the server's own vanilla and modded death messages)
 - Server start/stop is announced in Discord
 - Modpack update notifications when a new version is released on CurseForge (optional)
+- Everything above also works on GameVox, alongside Discord or instead of it (see [GameVox](#gamevox))
 
 ## Requirements
 
 - Docker, or Node.js 18+ (22 recommended) to run without Docker
-- A Discord bot and webhook for the same channel
+- A Discord bot and webhook for the same channel, and/or a GameVox bot
 - RCON enabled on your Minecraft server
 
 ## Setup
@@ -49,6 +50,22 @@ Fill in all values in `.env`.
 ```bash
 docker compose up -d
 ```
+
+## GameVox
+
+GameVox runs a Discord-compatible bot API, so the same bot code connects to it by switching the REST and gateway addresses. Set `GAMEVOX_TOKEN` and `GAMEVOX_CHANNEL_ID` and the bot joins GameVox too. Leave the `DISCORD_*` values empty to run on GameVox only.
+
+1. At [developers.gamevox.com](https://developers.gamevox.com), create an application. Copy the bot token, which is only shown once.
+2. On the Bot tab, turn on **Message Content**.
+3. Install the bot on your server with `https://gamevox.com/oauth2/authorize?client_id=YOUR_APP_ID&scope=bot+applications.commands&permissions=8` (or build a URL with fewer permissions on the OAuth2 tab).
+4. Copy the channel's ID and set `GAMEVOX_TOKEN` and `GAMEVOX_CHANNEL_ID` in `.env`.
+
+Differences from Discord:
+
+- GameVox webhooks can't change the sender's name or avatar, so there's no webhook. The bot posts each message itself, with the player's name and head in the embed's author line.
+- GameVox messages show in Minecraft as `[GAMEVOX] <Name> message`, in gold.
+- `DISCORD_MENTIONS` and Tab completion are Discord only.
+- On self-hosted GameVox servers, the bot's player-count status may not show, because self-hosted servers don't send presence updates yet.
 
 ## Running without Docker
 
@@ -95,9 +112,13 @@ pm2 works too: `pm2 start src/index.js --name mc-discord`.
 
 | Variable | Description |
 |---|---|
-| `DISCORD_TOKEN` | Bot token |
+| `DISCORD_TOKEN` | Discord bot token. Leave empty to run on GameVox only |
 | `DISCORD_CHANNEL_ID` | Channel ID for all messages |
 | `DISCORD_WEBHOOK_URL` | Webhook URL for the same channel |
+| `GAMEVOX_TOKEN` | (Optional) GameVox bot token. Set it to bridge GameVox as well |
+| `GAMEVOX_CHANNEL_ID` | GameVox channel ID for all messages. Required with `GAMEVOX_TOKEN` |
+| `GAMEVOX_API` | (Optional) GameVox REST origin, without `/api` (default: `https://app-api.gamevox.com`) |
+| `GAMEVOX_GATEWAY` | (Optional) GameVox gateway URL (default: `wss://gateway.gamevox.com`) |
 | `MC_LOG_HOST_DIR` | Docker only. Path to the logs *directory* on the host machine (not `latest.log` itself — see note below) |
 | `MC_LOG_PATH` | Without Docker only. Full path to `latest.log` (Docker sets this itself) |
 | `MC_SERVER_HOST_DIR` | Docker only. Path to the server folder on the host. Mounted read-only so the bot can read death messages from the jars in `mods/` and `libraries/` |
