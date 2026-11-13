@@ -73,25 +73,48 @@ deaths.reload();
 
 watchLogs(MC_LOG_PATH, (event) => bot.sendEvent(event), deaths);
 
+// One bad check isn't enough to call the server offline: a lag spike can time out a single `list`, and the
+// server sometimes hands one RCON connection another client's reply (e.g. the dashboard agent's `neoforge tps`).
+// Both used to post a false offline/online pair to Discord. Offline needs this many bad checks in a row
+// (30s apart); one good reply is enough to go back online.
+const OFFLINE_AFTER_FAILED_CHECKS = 3;
+
 let lastKnownOnline;
+let failedChecks = 0;
 
 async function refreshPresence() {
-  let isOnline = false;
+  let checkOk = false;
 
-  if (!rcon.connected) {
-    bot.updatePresence({ serverOnline: false });
-  } else {
+  if (rcon.connected) {
     const response = await rcon.query('list');
     const match = response?.match(/There are (\d+) of a max(?: of)? (\d+) players online[^:]*:(.*)/);
     if (match) {
       const players = match[3].split(',').map((p) => p.trim()).filter(Boolean);
       bot.updatePresence({ online: Number(match[1]), max: Number(match[2]), players, serverOnline: true, packName });
       deaths.setOnlinePlayers(players);
-      isOnline = true;
-    } else {
-      bot.updatePresence({ serverOnline: false });
+      checkOk = true;
+    } else if (response != null) {
+      // A timeout is already logged by rcon.query; log replies we couldn't read so false alarms can be traced
+      console.warn(`[Status] Unexpected reply to list: ${JSON.stringify(response.slice(0, 200))}`);
     }
   }
+
+  failedChecks = checkOk ? 0 : failedChecks + 1;
+  if (failedChecks > 0) {
+    console.warn(`[Status] Check failed (${failedChecks}/${OFFLINE_AFTER_FAILED_CHECKS})`);
+  }
+
+  let isOnline;
+  if (checkOk) {
+    isOnline = true;
+  } else if (lastKnownOnline === undefined || failedChecks >= OFFLINE_AFTER_FAILED_CHECKS) {
+    isOnline = false;
+  } else {
+    // Not sure yet: keep the last known state and presence until the next check
+    return;
+  }
+
+  if (!isOnline) bot.updatePresence({ serverOnline: false });
 
   if (lastKnownOnline !== undefined && lastKnownOnline !== isOnline) {
     bot.sendEvent({ type: isOnline ? 'server_start' : 'server_stop' });
